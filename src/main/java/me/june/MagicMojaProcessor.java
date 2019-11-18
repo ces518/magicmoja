@@ -1,14 +1,21 @@
 package me.june;
 
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.TypeSpec;
 import com.sun.source.tree.Tree;
 
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Filer;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
+import java.io.IOException;
 import java.util.Set;
 
 /**
@@ -75,6 +82,37 @@ public class MagicMojaProcessor extends AbstractProcessor {
             } else {
                 // 로깅
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Processing " + element.getSimpleName());
+            }
+
+            TypeElement typeElement = (TypeElement) element;
+            // Java Poet으로 가져옴
+            // 클래스 정보들을 참조할 수 있다.
+            ClassName className = ClassName.get(typeElement);
+
+            // pullOut 메소드를 구현한다.
+            MethodSpec pullOut = MethodSpec.methodBuilder("pullOut")
+                    .addModifiers(Modifier.PUBLIC)
+                    .returns(String.class)
+                    .addStatement(String.format("return \"%s\"", "토끼"))
+                    .build();
+
+            // 풀패키지 경로가아닌 클래스명만 정해주면 된다.
+            TypeSpec magicMoja = TypeSpec.classBuilder("MagicMoja")
+                    .addSuperinterface(className)
+                    .addModifiers(Modifier.PUBLIC) // public class 로 정의
+                    .addMethod(pullOut) // 위에서 생성한 메소드를 넣어준다.
+                    .build();
+
+            // 소스파일 만들기
+            // 모든 process 클래스를 상속받은경우 protected한필드가 존재함.
+            Filer filer = processingEnv.getFiler();
+            try {
+                // Java poet을 사용하면 손쉽게 만들수 있음.
+                JavaFile.builder(className.packageName(), magicMoja)
+                    .build()
+                    .writeTo(filer);
+            } catch (IOException e) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "FATAL ERROR: " + e);
             }
         }
         return true;
